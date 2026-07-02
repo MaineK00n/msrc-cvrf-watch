@@ -23,7 +23,7 @@ jobs:
       - name: Collect
         env:
           DATA: ./data
-          RECENT_MONTHS: "6"
+          RECENT_MONTHS: "0"   # 0=全月を収集
         run: |
           chmod +x scripts/collect.sh
           scripts/collect.sh

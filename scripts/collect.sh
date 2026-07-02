@@ -33,7 +33,9 @@ if ! jq -e '.value' "$tsdir/index.json" >/dev/null 2>&1; then
   exit 0
 fi
 
-mapfile -t MONTHS < <(jq -r '.value | sort_by(.CurrentReleaseDate) | reverse | .[].ID' "$tsdir/index.json")
+# カレンダー月(InitialReleaseDate)の新しい順。RECENT_MONTHS=0 で全月。
+# 注: CurrentReleaseDate(最終改訂)で選ぶと、古い月の再改訂が混ざり直近月が漏れるため使わない。
+mapfile -t MONTHS < <(jq -r '.value | sort_by(.InitialReleaseDate) | reverse | .[].ID' "$tsdir/index.json")
 [ "$RECENT_MONTHS" -gt 0 ] && MONTHS=("${MONTHS[@]:0:$RECENT_MONTHS}")
 
 # --- 各月ドキュメントを取得して圧縮保存 ---
