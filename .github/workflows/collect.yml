@@ -1,0 +1,44 @@
+name: collect-msrc-cvrf
+
+# api.msrc.microsoft.com の CVRF を毎時スナップショットして生データを溜める。
+on:
+  schedule:
+    - cron: "0 * * * *"     # 毎時（約1ヶ月運用の想定。GitHub schedule は best-effort で遅延あり）
+  workflow_dispatch: {}
+
+# 同時実行を直列化（push 競合・二重コミット防止）。実行中でもキャンセルしない。
+concurrency:
+  group: collect-msrc-cvrf
+  cancel-in-progress: false
+
+permissions:
+  contents: write        # 生データをリポジトリへコミットするため
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Collect
+        env:
+          DATA: ./data
+          RECENT_MONTHS: "6"
+        run: |
+          chmod +x scripts/collect.sh
+          scripts/collect.sh
+
+      - name: Commit snapshot
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A data
+          if git diff --cached --quiet; then
+            echo "no change"; exit 0
+          fi
+          git commit -m "collect $(date -u +%Y%m%dT%H%M%SZ)"
+          # 直列化しているが、念のため取りこぼし対策で rebase してから push
+          for i in 1 2 3; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && git push && break
+            sleep $((i*5))
+          done
